@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Гра «Де живе скарб?» — Музеї</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@500;700&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #fef3c7 50%, #fbcfe8 100%);
+            min-height: 100vh;
+        }
+        .font-heading {
+            font-family: 'Comfortaa', cursive;
+        }
+        .museum-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .museum-card:hover {
+            transform: translateY(-4px);
+        }
+        .exhibit-card {
+            touch-action: none;
+            user-select: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .exhibit-card:hover {
+            transform: scale(1.05);
+        }
+        .drag-over {
+            border-color: #3b82f6 !important;
+            background-color: #eff6ff !important;
+            transform: scale(1.02);
+        }
+        @media print {
+            body {
+                background: white !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+            .museum-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 15px !important;
+            }
+            .cards-grid {
+                grid-template-columns: repeat(4, 1fr) !important;
+                gap: 10px !important;
+            }
+        }
+        .print-only {
+            display: none;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 text-slate-800">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-6 no-print">
+            <div class="inline-block bg-white/80 backdrop-blur px-6 py-2 rounded-full shadow-sm mb-3 border border-amber-200">
+                <span class="text-amber-700 font-bold tracking-wide uppercase text-sm">💡 Дидактична гра з інклюзивним підходом</span>
+            </div>
+            <h1 class="font-heading text-3xl md:text-5xl font-extrabold text-amber-900 mb-2 drop-shadow-sm">
+                Гра «Де живе скарб?» 🏛️✨
+            </h1>
+            <p class="text-lg text-slate-700 max-w-2xl mx-auto font-medium">
+                Розподіли 20 експонатів по своїх будиночках-музеях! Допоможи кожному скарбу знайти свій дім.
+            </p>
+
+            <!-- Control Buttons -->
+            <div class="mt-6 flex flex-wrap gap-3 justify-center">
+                <button onclick="switchTab('interactive')" id="btn-tab-interactive" class="px-5 py-2.5 rounded-2xl font-bold text-white bg-amber-500 hover:bg-amber-600 shadow-md transition-all">
+                    🎮 Інтерактивна гра
+                </button>
+                <button onclick="switchTab('printable')" id="btn-tab-printable" class="px-5 py-2.5 rounded-2xl font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 shadow-sm transition-all">
+                    🖨️ Версія для друку (Робочий аркуш)
+                </button>
+                <button onclick="window.print()" class="px-5 py-2.5 rounded-2xl font-bold text-blue-900 bg-blue-100 hover:bg-blue-200 border border-blue-300 shadow-sm transition-all flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    Роздрукувати
+                </button>
+                <button onclick="resetGame()" class="px-5 py-2.5 rounded-2xl font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 shadow-sm transition-all">
+                    🔄 Перезапустити
+                </button>
+            </div>
+        </header>
+
+        <!-- INTERACTIVE TAB -->
+        <div id="interactive-view" class="space-y-8">
+            <!-- Score & Status -->
+            <div class="bg-white/90 backdrop-blur rounded-3xl p-4 shadow-lg border border-white/50 flex flex-wrap items-center justify-between gap-4 no-print">
+                <div class="flex items-center gap-3">
+                    <div class="bg-amber-100 p-3 rounded-2xl text-2xl">⭐</div>
+                    <div>
+                        <div class="text-sm font-semibold text-slate-500">Твій прогрес:</div>
+                        <div class="text-xl font-extrabold text-amber-900"><span id="matched-count">0</span> з 20 знайшли свій музей</div>
+                    </div>
+                </div>
+                <div id="completion-message" class="hidden text-green-700 font-extrabold bg-green-100 px-4 py-2 rounded-2xl animate-bounce">
+                    🎉 Супер! Усі скарби на своїх місцях! Ти справжній знавець музеїв!
+                </div>
+            </div>
+
+            <!-- Museums Drop Zones (Houses) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <!-- 1. Художній -->
+                <div class="museum-card bg-gradient-to-b from-rose-50 to-orange-50 border-2 border-dashed border-rose-300 rounded-3xl p-4 min-h-[300px] flex flex-col justify-between shadow-sm hover:shadow-md" data-museum="art" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                    <div>
+                        <div class="flex items-center justify-center mb-2">
+                            <span class="text-4xl">🎨</span>
+                        </div>
+                        <h3 class="font-heading font-bold text-center text-rose-900 text-lg mb-1">Художній музей</h3>
+                        <p class="text-xs text-center text-rose-600 mb-3 font-semibold">Картини, скульптури, витвори мистецтва</p>
+                    </div>
+                    <div class="drop-zone space-y-2 min-h-[160px] flex flex-col justify-start" id="zone-art">
+                        <!-- Placed items go here -->
+                    </div>
+                    <div class="text-center text-xs font-bold text-rose-400 mt-2">Експонатів: <span class="count">0</span>/4</div>
+                </div>
+
+                <!-- 2. Природничий -->
+                <div class="museum-card bg-gradient-to-b from-emerald-50 to-teal-50 border-2 border-dashed border-emerald-300 rounded-3xl p-4 min-h-[300px] flex flex-col justify-between shadow-sm hover:shadow-md" data-museum="natural" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                    <div>
+                        <div class="flex items-center justify-center mb-2">
+                            <span class="text-4xl">🌿</span>
+                        </div>
+                        <h3 class="font-heading font-bold text-center text-emerald-900 text-lg mb-1">Природничий музей</h3>
+                        <p class="text-xs text-center text-emerald-600 mb-3 font-semibold">Динозаври, мінерали, метеорити</p>
+                    </div>
+                    <div class="drop-zone space-y-2 min-h-[160px] flex flex-col justify-start" id="zone-natural">
+                        <!-- Placed items go here -->
+                    </div>
+                    <div class="text-center text-xs font-bold text-emerald-400 mt-2">Експонатів: <span class="count">0</span>/4</div>
+                </div>
+
+                <!-- 3. Краєзнавчий -->
+                <div class="museum-card bg-gradient-to-b from-amber-50 to-yellow-50 border-2 border-dashed border-amber-300 rounded-3xl p-4 min-h-[300px] flex flex-col justify-between shadow-sm hover:shadow-md" data-museum="local" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                    <div>
+                        <div class="flex items-center justify-center mb-2">
+                            <span class="text-4xl">🏛️</span>
+                        </div>
+                        <h3 class="font-heading font-bold text-center text-amber-900 text-lg mb-1">Краєзнавчий музей</h3>
+                        <p class="text-xs text-center text-amber-600 mb-3 font-semibold">Історія краю, вишиванки, побут</p>
+                    </div>
+                    <div class="drop-zone space-y-2 min-h-[160px] flex flex-col justify-start" id="zone-local">
+                        <!-- Placed items go here -->
+                    </div>
+                    <div class="text-center text-xs font-bold text-amber-400 mt-2">Експонатів: <span class="count">0</span>/4</div>
+                </div>
+
+                <!-- 4. Зоологічний -->
+                <div class="museum-card bg-gradient-to-b from-sky-50 to-blue-50 border-2 border-dashed border-sky-300 rounded-3xl p-4 min-h-[300px] flex flex-col justify-between shadow-sm hover:shadow-md" data-museum="zoo" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                    <div>
+                        <div class="flex items-center justify-center mb-2">
+                            <span class="text-4xl">🦁</span>
+                        </div>
+                        <h3 class="font-heading font-bold text-center text-sky-900 text-lg mb-1">Зоологічний музей</h3>
+                        <p class="text-xs text-center text-sky-600 mb-3 font-semibold">Тварини, метелики, мушлі, птахи</p>
+                    </div>
+                    <div class="drop-zone space-y-2 min-h-[160px] flex flex-col justify-start" id="zone-zoo">
+                        <!-- Placed items go here -->
+                    </div>
+                    <div class="text-center text-xs font-bold text-sky-400 mt-2">Експонатів: <span class="count">0</span>/4</div>
+                </div>
+
+                <!-- 5. Літературний -->
+                <div class="museum-card bg-gradient-to-b from-purple-50 to-indigo-50 border-2 border-dashed border-purple-300 rounded-3xl p-4 min-h-[300px] flex flex-col justify-between shadow-sm hover:shadow-md" data-museum="literary" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                    <div>
+                        <div class="flex items-center justify-center mb-2">
+                            <span class="text-4xl">📜</span>
+                        </div>
+                        <h3 class="font-heading font-bold text-center text-purple-900 text-lg mb-1">Літературний музей</h3>
+                        <p class="text-xs text-center text-purple-600 mb-3 font-semibold">Книги, рукописи, перо, машинка</p>
+                    </div>
+                    <div class="drop-zone space-y-2 min-h-[160px] flex flex-col justify-start" id="zone-literary">
+                        <!-- Placed items go here -->
+                    </div>
+                    <div class="text-center text-xs font-bold text-purple-400 mt-2">Експонатів: <span class="count">0</span>/4</div>
+                </div>
+            </div>
+
+            <!-- Exhibits Cards Pool -->
+            <div class="bg-white/90 backdrop-blur rounded-3xl p-6 shadow-xl border border-white/60">
+                <h2 class="font-heading text-xl font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+                    📦 Скарби для сортування (Перетягни або натисни):
+                </h2>
+                <div id="cards-pool" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                    <!-- Cards will be injected dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- PRINTABLE TAB -->
+        <div id="printable-view" class="hidden space-y-8 bg-white p-6 rounded-3xl shadow-lg border border-slate-200">
+            <div class="text-center border-b pb-4 mb-6">
+                <h2 class="font-heading text-2xl font-bold text-slate-900">Робочий аркуш: «Де живе скарб?»</h2>
+                <p class="text-slate-600 text-sm mt-1">Виріж картки із зображеннями та приклей у відповідний будиночок-музей або з'єднай лініями.</p>
+            </div>
+
+            <!-- Museums Houses for print -->
+            <div>
+                <h3 class="font-bold text-lg text-slate-800 mb-3 uppercase tracking-wider text-xs">1. Будиночки музеїв:</h3>
+                <div class="grid grid-cols-5 gap-3">
+                    <div class="border-2 border-slate-400 rounded-xl p-3 text-center min-h-[180px] flex flex-col justify-between bg-rose-50/50">
+                        <div>
+                            <div class="text-3xl">🎨</div>
+                            <div class="font-bold text-sm text-slate-900 mt-1">Художній</div>
+                        </div>
+                        <div class="border-t border-dashed border-slate-300 pt-2 text-[10px] text-slate-500">Місце для 4 карток</div>
+                    </div>
+                    <div class="border-2 border-slate-400 rounded-xl p-3 text-center min-h-[180px] flex flex-col justify-between bg-emerald-50/50">
+                        <div>
+                            <div class="text-3xl">🌿</div>
+                            <div class="font-bold text-sm text-slate-900 mt-1">Природничий</div>
+                        </div>
+                        <div class="border-t border-dashed border-slate-300 pt-2 text-[10px] text-slate-500">Місце для 4 карток</div>
+                    </div>
+                    <div class="border-2 border-slate-400 rounded-xl p-3 text-center min-h-[180px] flex flex-col justify-between bg-amber-50/50">
+                        <div>
+                            <div class="text-3xl">🏛️</div>
+                            <div class="font-bold text-sm text-slate-900 mt-1">Краєзнавчий</div>
+                        </div>
+                        <div class="border-t border-dashed border-slate-300 pt-2 text-[10px] text-slate-500">Місце для 4 карток</div>
+                    </div>
+                    <div class="border-2 border-slate-400 rounded-xl p-3 text-center min-h-[180px] flex flex-col justify-between bg-sky-50/50">
+                        <div>
+                            <div class="text-3xl">🦁</div>
+                            <div class="font-bold text-sm text-slate-900 mt-1">Зоологічний</div>
+                        </div>
+                        <div class="border-t border-dashed border-slate-300 pt-2 text-[10px] text-slate-500">Місце для 4 карток</div>
+                    </div>
+                    <div class="border-2 border-slate-400 rounded-xl p-3 text-center min-h-[180px] flex flex-col justify-between bg-purple-50/50">
+                        <div>
+                            <div class="text-3xl">📜</div>
+                            <div class="font-bold text-sm text-slate-900 mt-1">Літературний</div>
+                        </div>
+                        <div class="border-t border-dashed border-slate-300 pt-2 text-[10px] text-slate-500">Місце для 4 карток</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cards for cutting out -->
+            <div class="pt-6 border-t border-slate-300">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-lg text-slate-800 uppercase tracking-wider text-xs">2. Картки експонатів для вирізання (✂️):</h3>
+                    <span class="text-xs text-slate-500 font-semibold">20 карток</span>
+                </div>
+                <div id="printable-cards" class="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                    <!-- Cards injected dynamically -->
+                </div>
+            </div>
+
+            <!-- Self Evaluation -->
+            <div class="pt-4 border-t border-slate-200 flex justify-between items-center text-xs text-slate-600">
+                <div>ПІБ учня/учениці: ___________________________</div>
+                <div class="flex items-center gap-2">
+                    <span>Оціни свою роботу:</span>
+                    <span class="text-base">😃  🙂  😐</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIO EFFECTS -->
+    <script>
+        // Exhibit Items Data Definition (20 items, 4 per museum)
+        const exhibitsData = [
+            // ART (Художній)
+            { id: 'art-1', museum: 'art', title: 'Картина в рамі', icon: '🖼️', category: 'Образотворче мистецтво' },
+            { id: 'art-2', museum: 'art', title: 'Мармурова статуя', icon: '🗿', category: 'Скульптура' },
+            { id: 'art-3', museum: 'art', title: 'Палітра та пензлі', icon: '🎨', category: 'Знаряддя художника' },
+            { id: 'art-4', museum: 'art', title: 'Розписна ваза', icon: '🏺', category: 'Декоративне мистецтво' },
+
+            // NATURAL (Природничий)
+            { id: 'nat-1', museum: 'natural', title: 'Скелет динозавра', icon: '🦖', category: 'Палеонтологія' },
+            { id: 'nat-2', museum: 'natural', title: 'Кристали мінералів', icon: '💎', category: 'Геологія' },
+            { id: 'nat-3', museum: 'natural', title: 'Метеорит із космосу', icon: '☄️', category: 'Космос і гірські породи' },
+            { id: 'nat-4', museum: 'natural', title: 'Скам’янілий листок', icon: '🍃', category: 'Відбитки давніх рослин' },
+
+            // LOCAL LORE (Краєзнавчий)
+            { id: 'loc-1', museum: 'local', title: 'Вишита сорочка', icon: '👘', category: 'Національний одяг' },
+            { id: 'loc-2', museum: 'local', title: 'Глиняний глечик', icon: '🍯', category: 'Традиційний побут' },
+            { id: 'loc-3', museum: 'local', title: 'Старовинна монета', icon: '🪙', category: 'Нумізматика краю' },
+            { id: 'loc-4', museum: 'local', title: 'Дерев’яна прядка', icon: '🧵', category: 'Знаряддя праці' },
+
+            // ZOOLOGICAL (Зоологічний)
+            { id: 'zoo-1', museum: 'zoo', title: 'Колекція метеликів', icon: '🦋', category: 'Комахи' },
+            { id: 'zoo-2', museum: 'zoo', title: 'Експонат сови', icon: '🦉', category: 'Птахи' },
+            { id: 'zoo-3', museum: 'zoo', title: 'Морська мушля', icon: '🐚', category: 'Водний світ' },
+            { id: 'zoo-4', museum: 'zoo', title: 'Модель лева', icon: '🦁', category: 'Ссавці' },
+
+            // LITERARY (Літературний)
+            { id: 'lit-1', museum: 'literary', title: 'Старовинна книга', icon: '📖', category: 'Рідкісні видання' },
+            { id: 'lit-2', museum: 'literary', title: 'Перо та чорнильниця', icon: '✒️', category: 'Приладдя письменника' },
+            { id: 'lit-3', museum: 'literary', title: 'Рукопис із печаткою', icon: '📜', category: 'Чернетки творів' },
+            { id: 'lit-4', museum: 'literary', title: 'Друкарська машинка', icon: '⌨️', category: 'Техніка для текстів' }
+        ];
+
+        let selectedCardId = null;
+        let matchedCount = 0;
+
+        function initGame() {
+            const pool = document.getElementById('cards-pool');
+            const printablePool = document.getElementById('printable-cards');
+            pool.innerHTML = '';
+            printablePool.innerHTML = '';
+            matchedCount = 0;
+            document.getElementById('matched-count').textContent = '0';
+            document.getElementById('completion-message').classList.add('hidden');
+
+            // Reset drop zones
+            document.querySelectorAll('.drop-zone').forEach(zone => zone.innerHTML = '');
+            document.querySelectorAll('.count').forEach(c => c.textContent = '0');
+
+            // Shuffle cards
+            const shuffled = [...exhibitsData].sort(() => Math.random() - 0.5);
+
+            shuffled.forEach(item => {
+                // Interactive Card
+                const card = document.createElement('div');
+                card.id = `card-${item.id}`;
+                card.className = 'exhibit-card bg-amber-50 hover:bg-amber-100 border-2 border-amber-200 rounded-2xl p-3 text-center cursor-pointer shadow-sm hover:shadow flex flex-col items-center justify-center';
+                card.draggable = true;
+                card.dataset.id = item.id;
+                card.dataset.museum = item.museum;
+
+                card.innerHTML = `
+                    <div class="text-3xl mb-1">${item.icon}</div>
+                    <div class="font-bold text-xs text-slate-800 leading-tight">${item.title}</div>
+                    <div class="text-[10px] text-slate-500 mt-1">${item.category}</div>
+                `;
+
+                // Drag events
+                card.addEventListener('dragstart', handleDragStart);
+                // Click events for alternative touch/accessibility selection
+                card.addEventListener('click', () => handleCardClick(item.id));
+
+                pool.appendChild(card);
+
+                // Printable Card
+                const pCard = document.createElement('div');
+                pCard.className = 'border border-dashed border-slate-400 p-2 text-center rounded-lg flex flex-col items-center justify-center min-h-[90px]';
+                pCard.innerHTML = `
+                    <div class="text-2xl">${item.icon}</div>
+                    <div class="font-bold text-[11px] text-slate-800 mt-1 leading-tight">${item.title}</div>
+                    <div class="text-[9px] text-slate-500">${item.category}</div>
+                `;
+                printablePool.appendChild(pCard);
+            });
+        }
+
+        function handleDragStart(e) {
+            e.dataTransfer.setData('text/plain', e.target.dataset.id);
+            selectedCardId = e.target.dataset.id;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const museumCard = e.currentTarget;
+            museumCard.classList.remove('drag-over');
+
+            const id = e.dataTransfer.getData('text/plain') || selectedCardId;
+            if (!id) return;
+
+            checkAndPlaceCard(id, museumCard.dataset.museum);
+        }
+
+        function handleCardClick(id) {
+            const item = exhibitsData.find(x => x.id === id);
+            if (!item) return;
+
+            // Highlight selected card
+            document.querySelectorAll('.exhibit-card').forEach(c => c.classList.remove('ring-4', 'ring-blue-400'));
+            const cardEl = document.getElementById(`card-${id}`);
+
+            if (selectedCardId === id) {
+                selectedCardId = null;
+            } else {
+                selectedCardId = id;
+                if (cardEl) cardEl.classList.add('ring-4', 'ring-blue-400');
+            }
+        }
+
+        // Allow clicking on museum to place selected card
+        document.querySelectorAll('.museum-card').forEach(museum => {
+            museum.addEventListener('click', (e) => {
+                if (selectedCardId && !e.target.closest('.exhibit-card')) {
+                    checkAndPlaceCard(selectedCardId, museum.dataset.museum);
+                }
+            });
+        });
+
+        function checkAndPlaceCard(cardId, targetMuseum) {
+            const item = exhibitsData.find(x => x.id === cardId);
+            if (!item) return;
+
+            if (item.museum === targetMuseum) {
+                // Correct match!
+                playTone(523.25, 'sine', 0.15); // C5 sound
+                setTimeout(() => playTone(659.25, 'sine', 0.2), 150); // E5 sound
+
+                const cardEl = document.getElementById(`card-${cardId}`);
+                const zone = document.getElementById(`zone-${targetMuseum}`);
+
+                if (cardEl && zone) {
+                    cardEl.classList.remove('ring-4', 'ring-blue-400', 'bg-amber-50', 'hover:bg-amber-100');
+                    cardEl.classList.add('bg-green-100', 'border-green-300', 'py-1.5', 'px-2', 'flex-row', 'gap-2', 'justify-start');
+                    cardEl.draggable = false;
+                    
+                    // Simplify card content inside house
+                    cardEl.innerHTML = `
+                        <span class="text-xl">${item.icon}</span>
+                        <span class="font-bold text-xs text-green-900">${item.title}</span>
+                    `;
+
+                    zone.appendChild(cardEl);
+                    matchedCount++;
+                    document.getElementById('matched-count').textContent = matchedCount;
+
+                    // Update count in museum
+                    const countSpan = zone.parentElement.querySelector('.count');
+                    countSpan.textContent = parseInt(countSpan.textContent) + 1;
+
+                    selectedCardId = null;
+
+                    if (matchedCount === 20) {
+                        document.getElementById('completion-message').classList.remove('hidden');
+                        playWinSound();
+                    }
+                }
+            } else {
+                // Incorrect match
+                playTone(220, 'sawtooth', 0.25); // Low tone
+                const cardEl = document.getElementById(`card-${cardId}`);
+                if (cardEl) {
+                    cardEl.classList.add('animate-shake', 'border-red-400', 'bg-red-50');
+                    setTimeout(() => {
+                        cardEl.classList.remove('animate-shake', 'border-red-400', 'bg-red-50');
+                    }, 500);
+                }
+            }
+        }
+
+        // Web Audio API for feedback sounds
+        function playTone(freq, type, duration) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch(e){}
+        }
+
+        function playWinSound() {
+            [440, 554.37, 659.25, 880].forEach((freq, idx) => {
+                setTimeout(() => playTone(freq, 'triangle', 0.3), idx * 150);
+            });
+        }
+
+        function switchTab(tab) {
+            const interactiveView = document.getElementById('interactive-view');
+            const printableView = document.getElementById('printable-view');
+            const btnInteractive = document.getElementById('btn-tab-interactive');
+            const btnPrintable = document.getElementById('btn-tab-printable');
+
+            if (tab === 'interactive') {
+                interactiveView.classList.remove('hidden');
+                printableView.classList.add('hidden');
+                btnInteractive.classList.replace('bg-amber-100', 'bg-amber-500');
+                btnInteractive.classList.replace('text-amber-900', 'text-white');
+                btnPrintable.classList.replace('bg-amber-500', 'bg-amber-100');
+                btnPrintable.classList.replace('text-white', 'text-amber-900');
+            } else {
+                interactiveView.classList.add('hidden');
+                printableView.classList.remove('hidden');
+                btnPrintable.classList.replace('bg-amber-100', 'bg-amber-500');
+                btnPrintable.classList.replace('text-amber-900', 'text-white');
+                btnInteractive.classList.replace('bg-amber-500', 'bg-amber-100');
+                btnInteractive.classList.replace('text-white', 'text-amber-900');
+            }
+        }
+
+        function resetGame() {
+            initGame();
+        }
+
+        // Initialize on page load
+        window.onload = initGame;
+    </script>
+</body>
+</html>
